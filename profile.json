@@ -1,0 +1,230 @@
+{
+	"scp_version": "1.00.01",
+	"execution_period": 3600,
+	"free_disk_space_GB": 5,
+	"log_level": "trace",
+	"async_execute": true,
+	"tasks":[
+		{
+			"id": 1,
+			"name": "monitor_amsp",
+			"condition": 1,
+			"action": 1
+		},
+		{
+			"id": 2,
+			"name": "monitor_dsa",
+			"condition": 2,
+			"action": 1
+		},
+		{
+			"id": 3,
+			"name": "run_disk_vol_scan",
+			"action": 2
+		},
+		{
+			"id": 4,
+			"name": "collect_dsa_metrics",
+			"action": 3
+		},
+		{
+			"id": 5,
+			"name": "collect_dsa_diag_pkg",
+			"action": 4
+		}
+	],
+	"templates": {
+		"actions": [
+			{
+				"id": 1,
+				"pre_action": 102,
+				"name": "wpr_cpu_mem_start_record",
+				"executable": "wpr.exe",
+				"arguments":[
+					{ 
+						"command": "-start",
+						"value": "CPU"
+					},
+					{ 
+						"command": "-start",
+						"value": "Heap"
+					},
+					{ 
+						"command": "-start",
+						"value": "VirtualAllocation"
+					},
+					{ 
+						"command": "-start",
+						"value": "Hanle"
+					},
+					{ 
+						"command": "-start",
+						"value": "Registry"
+					},
+					{
+						"command": "-fileMode"
+					}
+				],
+				"post_action": 101,
+				"property": 1
+			},
+			{
+				"id": 101,
+				"name": "wpr_cancel_record",
+				"executable": "wpr.exe",
+				"arguments":[
+					{
+						"command": "-cancel"
+					}
+				]
+			},
+			{
+				"id": 102,
+				"name": "wpr_stop_record",
+				"executable": "wpr.exe",
+				"arguments":[
+					{
+						"command": "-stop",
+						"value": "wpr_*.etl"
+					}
+				]
+			},
+			{
+				"id": 2,
+				"name": "disk_vol_scan",
+				"executable": "toolDiskVolScan.exe",
+				"output" :"disk_vol_scan.output"
+			},
+			{
+				"id": 3,
+				"name": "dsa_get_metrics",
+				"executable": "{dsa_bin_dir}/sendCommand.cmd",
+				"arguments":[
+					{
+						"command": "--get",
+						"value": "Metrics"
+					}
+				],
+				"output" :"get_metrics.output"
+			},
+			{
+				"id": 4,
+				"name": "dsa_diagnostic_package",
+				"executable": "{dsa_bin_dir}/dsa_control.cmd",
+				"arguments":[
+					{
+						"command": "-d"
+					}
+				],
+				"output" :"diagnostic_package.output"
+			},
+			{
+				"id": 5,
+				"name": "ratt",
+				"executable": "ratt.exe",
+				"arguments":[
+					{
+						"command": "-s",
+						"value": "trace"
+					},
+					{
+						"command": "-s",
+						"value": "3"
+					}
+				],
+				"output" :"ratt.output"
+			},
+			{
+				"id": 6,
+				"name": "enable_trace_log",
+				"executable": "{dsa_bin_dir}/dsa_control.cmd",
+				"arguments":[
+					{"--trace": "9"}
+				],
+				"output" :"enable_trace.output"
+			}
+		],
+		"action_properties":[
+			{
+				"id": 0,
+				"timeout_sec": 600
+			},
+			{
+				"id":1,
+				"timeout_sec": 600,
+				"period_sec": 30,
+				"repeat": {
+					"count": 10,
+					"interval_sec": 10
+				}
+			},
+			{
+				"id":2,
+				"timeout_sec": 1800,
+				"period_sec": 10,
+				"repeat": {
+					"count": 100,
+					"interval_sec": 10
+				}
+			}
+		],
+		"condtions": [
+				{
+					"id":1,
+					"name": "monitor_amsp",
+					"monitor_process": "coreServiceShell.exe",
+					"policy": "1&&2"
+				},
+				{
+					"id":2,
+					"name": "monitor_ds_agent",
+					"monitor_process": "dsa.exe",
+					"policy": "1||2"
+				}
+		],
+		"condition_properties":
+		[
+			{
+				"id": 1,
+				"type": "CPU",
+				"check_interval": 1000,
+				"threshold": 15,
+				"maturity_millisec": 3000
+			},
+			{
+				"id": 2,
+				"type": "Memory",
+				"check_interval": 1000,
+				"threshold": 500,
+				"maturity_millisec": 10000
+			}
+		]
+	},
+	"variables":{
+		"dsa_bin_dir": "reg_key: {HKEY_LOCAL_MACHINE}, {SOFTWARE\\TrendMicro\\Deep Security Agent}, {InstallationFolder}",
+		"xbc_log_dir":"C:\\Program Files (x86)\\Trend Micro\\Endpoint Basecamp\\log",
+		"xbc_proxy_server":"reg_key: {HKEY_LOCAL_MACHINE}, {SOFTWARE\\WOW6432Node\\TrendMicro\\TMSecurityService}, {proxy_server}",
+		"azcopy_log_dir": "C:\\users\\%USERNAME%\\.azcopy"
+	},
+	"upload":{
+		"azure_blob_host":"https://rpcollectedthings.blob.core.windows.net/{}",
+		"proxy":{
+			"host":"test_proxy_server.com",
+			"port":8080
+		},
+		"authentication":{
+			"sas":"??",
+			"access_key":"??"
+		},
+		"max_chunk_size_MB": 50,
+		"bandwidth_limit_MB": 10,
+		"grouping":[
+			{
+				"tasks": [1, 2]
+			},
+			{
+				"tasks":[3,4,5]
+			}
+		]
+	}
+}
