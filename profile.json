@@ -33,7 +33,7 @@
 			"action": 4
 		}
 	],
-	"templates": {
+	"template": {
 		"actions": [
 			{
 				"id": 1,
@@ -55,7 +55,7 @@
 					},
 					{ 
 						"command": "-start",
-						"value": "Hanle"
+						"value": "Handle"
 					},
 					{ 
 						"command": "-start",
@@ -139,7 +139,10 @@
 				"name": "enable_trace_log",
 				"executable": "{dsa_bin_dir}/dsa_control.cmd",
 				"arguments":[
-					{"--trace": "9"}
+					{
+						"command": "--trace",
+						"value": "9"
+					}
 				],
 				"output" :"enable_trace.output"
 			}
@@ -168,46 +171,73 @@
 				}
 			}
 		],
-		"condtions": [
+		"conditions": [
 				{
 					"id":1,
 					"name": "monitor_amsp",
 					"monitor_process": "coreServiceShell.exe",
-					"policy": "1&&2"
+					"criterias": {
+						"mandatory": [3],
+						"optional": [1,2]
+					}
 				},
 				{
 					"id":2,
 					"name": "monitor_ds_agent",
 					"monitor_process": "dsa.exe",
-					"policy": "1||2"
+					"criterias": {
+						"mandatory": [3],
+						"optional": [1,2]
+					}
 				}
 		],
-		"condition_properties":
+		"condition_criterias":
 		[
 			{
 				"id": 1,
 				"type": "CPU",
-				"check_interval": 1000,
+				"interval": 1000,
 				"threshold": 15,
+				"operator": ">=",
 				"maturity_millisec": 3000
 			},
 			{
 				"id": 2,
 				"type": "Memory",
-				"check_interval": 1000,
+				"interval": 1000,
 				"threshold": 500,
+				"operator": ">=",
 				"maturity_millisec": 10000
+			},
+			{
+				"id": 3,
+				"type": "DiskFreeSpace",
+				"interval": 1000,
+				"operator": ">",
+				"threshold": 5
 			}
 		]
 	},
-	"variables":{
-		"dsa_bin_dir": "reg_key: {HKEY_LOCAL_MACHINE}, {SOFTWARE\\TrendMicro\\Deep Security Agent}, {InstallationFolder}",
-		"xbc_log_dir":"C:\\Program Files (x86)\\Trend Micro\\Endpoint Basecamp\\log",
-		"xbc_proxy_server":"reg_key: {HKEY_LOCAL_MACHINE}, {SOFTWARE\\WOW6432Node\\TrendMicro\\TMSecurityService}, {proxy_server}",
-		"azcopy_log_dir": "C:\\users\\%USERNAME%\\.azcopy"
-	},
+	"variables":[
+		{
+			"alias": "dsa_bin_dir",
+			"value": "reg_key: {HKEY_LOCAL_MACHINE}, {SOFTWARE\\TrendMicro\\Deep Security Agent}, {InstallationFolder}"
+		},
+		{
+			"alias": "xbc_log_dir",
+			"value": "C:\\Program Files (x86)\\Trend Micro\\Endpoint Basecamp\\log"
+		},
+		{
+			"alias":"xbc_proxy_server",
+			"value":"reg_key: {HKEY_LOCAL_MACHINE}, {SOFTWARE\\WOW6432Node\\TrendMicro\\TMSecurityService}, {proxy_server}"
+		},
+		{
+			"alias":"azcopy_log_dir",
+			"value":"C:\\users\\%USERNAME%\\.azcopy"
+		}
+	],
 	"upload":{
-		"azure_blob_host":"https://rpcollectedthings.blob.core.windows.net/{}",
+		"azure_blob_host":"https://rpcollectedthings.blob.core.windows.net",
 		"proxy":{
 			"host":"test_proxy_server.com",
 			"port":8080

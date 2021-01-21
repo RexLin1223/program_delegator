@@ -1,18 +1,44 @@
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:31: [Error] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:36: [Error] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:31: [Error] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:36: [Error] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:36: [Error] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:31: [Fatal] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:36: [Error] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:36: [Error] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:36: [Error] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:31: [Fatal] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:36: [Fatal] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:36: [Fatal] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:31: [Fatal] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:31: [Fatal] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:31: [Fatal] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:31: [Fatal] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:31: [Fatal] Test 123
-2021/01/19 22:31:47 D:/code/golang/scp_delegator/logger/logger.go:36: [Fatal] Test 123
+2021/01/20 11:27:47 d:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/20 11:29:17 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/20 11:29:17 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main End
+2021/01/20 11:29:30 d:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/20 11:33:25 d:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/20 11:39:22 d:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/20 11:39:26 d:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main End
+2021/01/20 11:39:46 d:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/20 11:39:48 d:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main End
+2021/01/20 11:40:35 d:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/20 11:40:38 d:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main End
+2021/01/21 18:32:40 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/21 18:32:41 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Core count 4
+2021/01/21 18:32:41 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Total memory 53769236744503296 MB
+2021/01/21 18:32:41 D:/Dev/repos/program_delegator/logger/logger.go:36: [Error] Get memory by API GetProcessMemoryInfo fail with error The operation completed successfully.
+2021/01/21 18:33:09 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/21 18:33:10 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Core count 4
+2021/01/21 18:33:10 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Total memory 53769236744503296 MB
+2021/01/21 18:33:10 D:/Dev/repos/program_delegator/logger/logger.go:36: [Error] Get memory by API GetProcessMemoryInfo fail with error The operation completed successfully.
+2021/01/21 18:34:55 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/21 18:34:57 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Core count 4
+2021/01/21 18:35:02 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Total memory 53769236744503296 MB
+2021/01/21 18:35:35 D:/Dev/repos/program_delegator/logger/logger.go:36: [Error] Get memory by API GetProcessMemoryInfo fail with error The operation completed successfully.
+2021/01/21 18:35:55 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/21 18:35:56 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Core count 4
+2021/01/21 18:36:00 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Total memory 53769236744503296 MB
+2021/01/21 18:36:01 D:/Dev/repos/program_delegator/logger/logger.go:36: [Error] Get memory by API GetProcessMemoryInfo fail with error The operation completed successfully.
+2021/01/21 18:36:17 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/21 18:36:21 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Core count 4
+2021/01/21 18:36:23 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Total memory 53769236744503296 MB
+2021/01/21 18:36:48 D:/Dev/repos/program_delegator/logger/logger.go:36: [Error] Get memory by API GetProcessMemoryInfo fail with error The operation completed successfully.
+2021/01/21 18:37:49 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/21 18:37:52 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Core count 4
+2021/01/21 18:37:52 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Total memory 48902 MB
+2021/01/21 18:39:11 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/21 18:39:18 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Core count 4
+2021/01/21 18:40:37 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/21 18:40:39 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Core count 4
+2021/01/21 18:40:39 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] CPU usage %!d(float64=0) %!(NOVERB)
+2021/01/21 18:40:41 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Total memory usage 17096 MB
+2021/01/21 18:41:35 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
+2021/01/21 18:41:37 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Core count 4
+2021/01/21 18:41:37 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] CPU usage 0.000000
+2021/01/21 18:41:38 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Total memory usage 17098 MB
