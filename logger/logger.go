@@ -26,25 +26,26 @@ func getInstance() *log.Logger {
 	return instance
 }
 
-func LogFatal(fmt string, arg ...interface{}) {
+var LogFatal = func(fmt string, arg ...interface{}) {
 	getInstance().SetPrefix("[Fatal] ")
 	getInstance().Printf(fmt, arg...)
 	println("Fatal Instance %p", getInstance())
 }
-func LogError(fmt string, arg ...interface{}) {
+var LogError = func(fmt string, arg ...interface{}) {
 	getInstance().SetPrefix("[Error] ")
 	getInstance().Printf(fmt, arg...)
 	println("Error Instance %p", getInstance())
 }
-func LogInfo(fmt string, arg ...interface{}) {
+var LogInfo = func(fmt string, arg ...interface{}) {
 	getInstance().SetPrefix("[Info] ")
 	getInstance().Printf(fmt, arg...)
 }
-func LogDebug(fmt string, arg ...interface{}) {
+var LogDebug = func(fmt string, arg ...interface{}) {
 	getInstance().SetPrefix("[Debug] ")
 	getInstance().Printf(fmt, arg...)
 }
-func LogTrace(fmt string, arg ...interface{}) {
+var LogTrace = func(fmt string, arg ...interface{}) {
 	getInstance().SetPrefix("[Trace] ")
 	getInstance().Printf(fmt, arg...)
 }
+

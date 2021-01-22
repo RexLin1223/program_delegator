@@ -73,13 +73,13 @@ type Condition struct {
 	ID        uint32 `json:"id"`
 	Name      string `json:"name"`
 	Target    string `json:"monitor_process"`
-	Criterias string `json:"criterias"`
+	Criterias Criterias `json:"criterias"`
 }
 
 // Criterias is rule set of ConditionsCriterias which need fulfill all criteria.
 type Criterias struct {
-	mandatory []uint32 `json:"mandatory"`
-	optional  []uint32 `json:"optional"`
+	Mandatory []uint32 `json:"mandatory"`
+	Optional  []uint32 `json:"optional"`
 }
 
 // ConditionCriteria is boundary of condition trigger ponint.

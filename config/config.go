@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"scp_delegator/os/windows"
 	"strings"
 )
@@ -81,23 +82,95 @@ func GetTemplateCondition(cfg *Config, actionID uint32) *Condition {
 	return nil
 }
 
-func ParseTemplates(cfg *Config) TemplateReader {
-	var templates TemplateReader
-	t := cfg.Template
-	for _, a := range t.Actions {
-		templates.ActionReader[a.ID] = a
+func GetTemplateActionProperty(cfg *Config, propertyID uint32) *ActionProperty {
+	templateProperty := cfg.Template.ActionsProperties
+	for _, property := range templateProperty {
+		if property.ID == propertyID {
+			return &property
+		}
+	}
+	return nil
+}
+
+func GetTemplateCriteria(cfg *Config, criteriaID uint32) *ConditionCriteria {
+	templateCriteria := cfg.Template.ConditionCriterias
+	for _, criteria := range templateCriteria {
+		if criteria.ID == criteriaID {
+			return &criteria
+		}
+	}
+	return nil
+}
+
+type TaskMaterial struct {
+	TaskID            uint32
+	ActionMaterial    ActionMaterial
+	ConditionMaterial ConditionMaterial
+}
+
+type ActionMaterial struct {
+	Action      *Action
+	ActProperty *ActionProperty
+}
+
+type ConditionMaterial struct {
+	Condition         *Condition
+	MandatoryCriteria []*ConditionCriteria
+	OptionalCriteria  []*ConditionCriteria
+}
+
+func GetTaskMaterial(cfg *Config, taskID uint32) (*TaskMaterial, error) {
+	// Find task from task list
+	var t *Task = nil
+	for _, task := range cfg.Tasks {
+		if task.ID == taskID {
+			t = &task
+			break
+		}
+	}
+	if t == nil {
+		return nil, errors.New(fmt.Sprintf("can't get task ID %d from task list", taskID))
 	}
 
-	for _, ap := range t.ActionsProperties {
-		templates.ActionPropertiesReader[ap.ID] = ap
+	// Find action from action template
+	am := ActionMaterial{}
+	act := GetTemplateAction(cfg, t.ActionID)
+	if act == nil {
+		return nil, errors.New(fmt.Sprintf("can't get action ID %d from action template", t.ActionID))
+	}
+	am.Action = act
+
+	// Find action property from action property template
+	actProperty := GetTemplateActionProperty(cfg, act.Property)
+	if actProperty == nil {
+		return nil, errors.New(fmt.Sprintf("can't get action prperty ID %d from action property template", act.Property))
+	}
+	am.ActProperty = actProperty
+
+	// Find action from action template
+	cm := ConditionMaterial{}
+	cond := GetTemplateCondition(cfg, t.ConditionID)
+	cm.Condition = cond
+
+	if cond != nil {
+		// Condition can be nil, it represents execute command immediately
+		mc := make([]*ConditionCriteria, len(cond.Criterias.Mandatory))
+
+		for i, cid := range cond.Criterias.Mandatory {
+			mc[i] = GetTemplateCriteria(cfg, cid)
+		}
+		cm.MandatoryCriteria = mc
+
+		oc := make([]*ConditionCriteria, len(cond.Criterias.Optional))
+		for i, cid := range cond.Criterias.Optional {
+			oc[i] = GetTemplateCriteria(cfg, cid)
+		}
+		cm.OptionalCriteria = oc
 	}
 
-	for _, c := range t.Conditions {
-		templates.ConditionsReader[c.ID] = c
-	}
-
-	for _, cc := range t.ConditionCriterias {
-		templates.ConditionCriteriaReader[cc.ID] = cc
-	}
-	return templates
+	return &TaskMaterial{
+		TaskID:            taskID,
+		ActionMaterial:    am,
+		ConditionMaterial: cm,
+	}, nil
 }

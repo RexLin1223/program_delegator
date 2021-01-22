@@ -83,29 +83,43 @@ func newWindowsProcess(e *windows.ProcessEntry32) WindowsProcess {
 	}
 }
 
-func OpenProcessHandle(processName string) *syscall.Handle {
+func GetPID(processName string) (int32, error){
+	proc, err :=findProcessByName(processName)
+	if err!=nil{
+		logger.LogError("Get PID failed with error %s", err.Error())
+		return -1, err
+	}
+
+	return int32(proc.ProcessID), nil
+}
+
+func OpenProcessHandle(processName string) (*syscall.Handle, error) {
 	wp, err := findProcessByName(processName)
 	if err != nil {
-		logger.LogError("Find process ID fail with error %s", err)
-		return nil
+		logger.LogError("Find process ID failed with error %s", err.Error())
+		return nil, err
 	}
 
 	h, err := syscall.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(wp.ProcessID))
 	if err != nil{
 		logger.LogError("Open process handle fail with error %s", err)
-		return nil
+		return nil, err
 	}
 
-	return &h
+	return &h, nil
 }
 
-func GetAPI(dllName string, funcName string) *syscall.LazyProc {
+func GetAPI(dllName string, funcName string) (*syscall.LazyProc,error) {
 	entry := syscall.NewLazyDLL(dllName)
 	if entry == nil {
 		logger.LogError("Can't find system library %s", dllName)
-		return nil
+		return nil, errors.New("Can't find system library" + dllName)
 	}
 
 	proc :=entry.NewProc(funcName)
-	return proc
+	if proc == nil{
+		logger.LogError("Can't find function name %s in library %s", dllName)
+		return nil, errors.New("Can't find function name"+ funcName + "library" + dllName)
+	}
+	return proc, nil
 }
