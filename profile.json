@@ -1,260 +1,278 @@
 {
-	"scp_version": "1.00.01",
-	"execution_period": 3600,
-	"free_disk_space_GB": 5,
-	"log_level": "trace",
-	"async_execute": true,
-	"tasks":[
-		{
-			"id": 1,
-			"name": "monitor_amsp",
-			"condition": 1,
-			"action": 1
-		},
-		{
-			"id": 2,
-			"name": "monitor_dsa",
-			"condition": 2,
-			"action": 1
-		},
-		{
-			"id": 3,
-			"name": "run_disk_vol_scan",
-			"action": 2
-		},
-		{
-			"id": 4,
-			"name": "collect_dsa_metrics",
-			"action": 3
-		},
-		{
-			"id": 5,
-			"name": "collect_dsa_diag_pkg",
-			"action": 4
-		}
-	],
-	"template": {
-		"actions": [
-			{
-				"id": 1,
-				"pre_action": 102,
-				"name": "wpr_cpu_mem_start_record",
-				"executable": "wpr.exe",
-				"arguments":[
-					{ 
-						"command": "-start",
-						"value": "CPU"
-					},
-					{ 
-						"command": "-start",
-						"value": "Heap"
-					},
-					{ 
-						"command": "-start",
-						"value": "VirtualAllocation"
-					},
-					{ 
-						"command": "-start",
-						"value": "Handle"
-					},
-					{ 
-						"command": "-start",
-						"value": "Registry"
-					},
-					{
-						"command": "-fileMode"
-					}
-				],
-				"post_action": 101,
-				"property": 1
-			},
-			{
-				"id": 101,
-				"name": "wpr_cancel_record",
-				"executable": "wpr.exe",
-				"arguments":[
-					{
-						"command": "-cancel"
-					}
-				]
-			},
-			{
-				"id": 102,
-				"name": "wpr_stop_record",
-				"executable": "wpr.exe",
-				"arguments":[
-					{
-						"command": "-stop",
-						"value": "wpr_*.etl"
-					}
-				]
-			},
-			{
-				"id": 2,
-				"name": "disk_vol_scan",
-				"executable": "toolDiskVolScan.exe",
-				"output" :"disk_vol_scan.output"
-			},
-			{
-				"id": 3,
-				"name": "dsa_get_metrics",
-				"executable": "{dsa_bin_dir}/sendCommand.cmd",
-				"arguments":[
-					{
-						"command": "--get",
-						"value": "Metrics"
-					}
-				],
-				"output" :"get_metrics.output"
-			},
-			{
-				"id": 4,
-				"name": "dsa_diagnostic_package",
-				"executable": "{dsa_bin_dir}/dsa_control.cmd",
-				"arguments":[
-					{
-						"command": "-d"
-					}
-				],
-				"output" :"diagnostic_package.output"
-			},
-			{
-				"id": 5,
-				"name": "ratt",
-				"executable": "ratt.exe",
-				"arguments":[
-					{
-						"command": "-s",
-						"value": "trace"
-					},
-					{
-						"command": "-s",
-						"value": "3"
-					}
-				],
-				"output" :"ratt.output"
-			},
-			{
-				"id": 6,
-				"name": "enable_trace_log",
-				"executable": "{dsa_bin_dir}/dsa_control.cmd",
-				"arguments":[
-					{
-						"command": "--trace",
-						"value": "9"
-					}
-				],
-				"output" :"enable_trace.output"
-			}
-		],
-		"action_properties":[
-			{
-				"id": 0,
-				"timeout_sec": 600
-			},
-			{
-				"id":1,
-				"timeout_sec": 600,
-				"period_sec": 30,
-				"repeat": {
-					"count": 10,
-					"interval_sec": 10
-				}
-			},
-			{
-				"id":2,
-				"timeout_sec": 1800,
-				"period_sec": 10,
-				"repeat": {
-					"count": 100,
-					"interval_sec": 10
-				}
-			}
-		],
-		"conditions": [
-				{
-					"id":1,
-					"name": "monitor_amsp",
-					"monitor_process": "coreServiceShell.exe",
-					"criterias": {
-						"mandatory": [3],
-						"optional": [1,2]
-					}
-				},
-				{
-					"id":2,
-					"name": "monitor_ds_agent",
-					"monitor_process": "dsa.exe",
-					"criterias": {
-						"mandatory": [3],
-						"optional": [1,2]
-					}
-				}
-		],
-		"condition_criterias":
-		[
-			{
-				"id": 1,
-				"type": "CPU",
-				"interval": 1000,
-				"threshold": 15,
-				"operator": ">=",
-				"maturity_millisec": 3000
-			},
-			{
-				"id": 2,
-				"type": "Memory",
-				"interval": 1000,
-				"threshold": 500,
-				"operator": ">=",
-				"maturity_millisec": 10000
-			},
-			{
-				"id": 3,
-				"type": "DiskFreeSpace",
-				"interval": 1000,
-				"operator": ">",
-				"threshold": 5
-			}
-		]
-	},
-	"variables":[
-		{
-			"alias": "dsa_bin_dir",
-			"value": "reg_key: {HKEY_LOCAL_MACHINE}, {SOFTWARE\\TrendMicro\\Deep Security Agent}, {InstallationFolder}"
-		},
-		{
-			"alias": "xbc_log_dir",
-			"value": "C:\\Program Files (x86)\\Trend Micro\\Endpoint Basecamp\\log"
-		},
-		{
-			"alias":"xbc_proxy_server",
-			"value":"reg_key: {HKEY_LOCAL_MACHINE}, {SOFTWARE\\WOW6432Node\\TrendMicro\\TMSecurityService}, {proxy_server}"
-		},
-		{
-			"alias":"azcopy_log_dir",
-			"value":"C:\\users\\%USERNAME%\\.azcopy"
-		}
-	],
-	"upload":{
-		"azure_blob_host":"https://rpcollectedthings.blob.core.windows.net",
-		"proxy":{
-			"host":"test_proxy_server.com",
-			"port":8080
-		},
-		"authentication":{
-			"sas":"??",
-			"access_key":"??"
-		},
-		"max_chunk_size_MB": 50,
-		"bandwidth_limit_MB": 10,
-		"grouping":[
-			{
-				"tasks": [1, 2]
-			},
-			{
-				"tasks":[3,4,5]
-			}
-		]
-	}
+  "scp_version": "1.00.01",
+  "period": 3600,
+  "log_level": "trace",
+  "async_execute": true,
+  "tasks": [
+    {
+      "id": 1,
+      "name": "monitor_taskmgr",
+      "condition": 3,
+      "action": 1
+    },
+    {
+      "id": 2,
+      "name": "collect_disk_vol",
+      "action": 2
+    },
+    {
+      "id": 3,
+      "name": "collect_diag_pkg",
+      "action": 3
+    },
+    {
+      "id": 2,
+      "name": "collect_DSA_metrics",
+      "action": 4
+    }
+  ],
+  "template": {
+    "actions": [
+      {
+        "id": 1,
+        "pre_action": 101,
+        "name": "wpr_cpu_mem_start_record",
+        "executable": "wpr.exe",
+        "arguments": [
+          {
+            "command": "-start",
+            "value": "Heap"
+          },
+          {
+            "command": "-start",
+            "value": "VirtualAllocation"
+          },
+          {
+            "command": "-fileMode"
+          }
+        ],
+        "post_action": 102,
+        "property": 1,
+        "output": "wpr_record.log"
+      },
+      {
+        "id": 101,
+        "name": "wpr_cancel_record",
+        "executable": "wpr.exe",
+        "arguments": [
+          {
+            "command": "-cancel"
+          }
+        ],
+        "output": "wpr_cancel.log"
+      },
+      {
+        "id": 102,
+        "name": "wpr_stop_record",
+        "executable": "wpr.exe",
+        "arguments": [
+          {
+            "command": "-stop",
+            "value": "{log_dir}\\wpr.etl"
+          }
+        ],
+        "output": "wpr_stop.log"
+      },
+      {
+        "id": 2,
+        "name": "disk_vol_scan",
+        "executable": "toolDiskVolScan.exe",
+        "output": "disk_vol_scan.log"
+      },
+      {
+        "id": 3,
+        "name": "dsa_get_metrics",
+        "executable": "{dsa_bin_dir}\\sendCommand.cmd",
+        "arguments": [
+          {
+            "command": "--get",
+            "value": "Metrics"
+          }
+        ],
+        "output": "get_metrics.log"
+      },
+      {
+        "id": 4,
+        "name": "dsa_diagnostic_package",
+        "executable": "{dsa_bin_dir}\\dsa_control.cmd",
+        "arguments": [
+          {
+            "command": "-d"
+          }
+        ],
+        "output": "diagnostic_package.log"
+      },
+      {
+        "id": 5,
+        "name": "ratt",
+        "executable": "ratt.exe",
+        "arguments": [
+          {
+            "command": "-s",
+            "value": "trace"
+          },
+          {
+            "command": "-s",
+            "value": "3"
+          }
+        ],
+        "output": "ratt.log"
+      },
+      {
+        "id": 6,
+        "name": "enable_trace_log",
+        "executable": "{dsa_bin_dir}\\dsa_control.cmd",
+        "arguments": [
+          {
+            "command": "--trace",
+            "value": "9"
+          }
+        ],
+        "output": "enable_trace.log"
+      }
+    ],
+    "action_properties": [
+      {
+        "id": 0,
+        "timeout_sec": 600
+      },
+      {
+        "id": 1,
+        "timeout_sec": 600,
+        "period_sec": 10,
+        "repeat": {
+          "count": 1,
+          "interval_sec": 10
+        }
+      },
+      {
+        "id": 2,
+        "timeout_sec": 1800,
+        "period_sec": 10,
+        "repeat": {
+          "count": 100,
+          "interval_sec": 10
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "id": 1,
+        "name": "monitor_amsp",
+        "monitor_process": "coreServiceShell.exe",
+        "timeout_sec": 600,
+        "criteria": {
+          "mandatory": [
+            3
+          ],
+          "optional": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "id": 2,
+        "name": "monitor_ds_agent",
+        "monitor_process": "dsa.exe",
+        "timeout_sec": 600,
+        "criteria": {
+          "mandatory": [
+            3
+          ],
+          "optional": [
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "id": 3,
+        "name": "test_monitor_task_manager",
+        "monitor_process": "Taskmgr.exe",
+        "timeout_sec": 600,
+        "criteria": {
+          "mandatory": [
+            3
+          ],
+          "optional": [
+            4
+          ]
+        }
+      }
+    ],
+    "condition_criteria": [
+      {
+        "id": 1,
+        "type": "CPU",
+        "interval": 1000,
+        "threshold": 15,
+        "operator": ">=",
+        "maturity_ms": 3000
+      },
+      {
+        "id": 2,
+        "type": "Memory",
+        "interval_sec": 1,
+        "threshold": 500,
+        "operator": ">=",
+        "maturity_ms": 10000
+      },
+      {
+        "id": 3,
+        "type": "DiskAvailableUsage",
+        "interval_sec": 10,
+        "operator": ">",
+        "threshold": 5
+      },
+      {
+        "id": 4,
+        "type": "CPU",
+        "interval_sec": 1,
+        "threshold": 1,
+        "operator": ">="
+      }
+    ]
+  },
+  "variables": [
+    {
+      "alias": "log_dir",
+      "value": "{output_dir}"
+    },
+    {
+      "alias": "dsa_bin_dir",
+      "value": "reg_key: {HKEY_LOCAL_MACHINE}, {SOFTWARE\\TrendMicro\\Deep Security Agent}, {InstallationFolder}"
+    },
+    {
+      "alias": "xbc_log_dir",
+      "value": "C:\\Program Files (x86)\\Trend Micro\\Endpoint Basecamp\\log"
+    },
+    {
+      "alias": "xbc_proxy_server",
+      "value": "reg_key: {HKEY_LOCAL_MACHINE}, {SOFTWARE\\WOW6432Node\\TrendMicro\\TMSecurityService}, {proxy_server}"
+    },
+    {
+      "alias": "azcopy_log_dir",
+      "value": "C:\\users\\%USERNAME%\\.azcopy"
+    }
+  ],
+  "upload": {
+    "azure_blob": {
+      "host_name": "blob.core.windows.net",
+      "account_name": "rpcollectedthings",
+      "container_name": "ds-seg",
+      "sas_token": "?sv=2019-12-12&ss=bfqt&srt=sco&sp=rwdlacupx&se=2021-02-15T01:32:53Z&st=2021-01-14T17:32:53Z&spr=https,http&sig=tlhQKUjSHaFBxcLF85rglaYoULhmdkWFm7PSjR%2BYCZU%3D"
+    },
+    "proxy": {
+      "host": "",
+      "port": 0
+    },
+    "timeout_sec": 300,
+    "max_block_size_MB": 250,
+    "rate_limit_MB": 10,
+    "max_retry_count": 10,
+    "seg_case_id": "scp-windows",
+    "company_id": "a0518151-3583-47d3-976b-e25d03b0fe27",
+    "device_id": "e351a188-6ba5-41b7-90be-31fdf2287cff"
+  }
 }

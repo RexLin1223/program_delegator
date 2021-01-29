@@ -15,18 +15,19 @@ type TasksManager struct {
 }
 
 // CreateTaskHandler is factory pattern to create task handler
-func CreateTaskHandler(cfg *config.Config) (*TasksManager, error) {
+func CreateTaskHandler(ctx *context.Context, cfg *config.Config) (*TasksManager, error) {
 	tm := &TasksManager{
 		cfg:       cfg,
 		ctx:       nil,
 		cancelFun: nil,
 		handlers:  make(map[uint32]*SingleTaskHandler, len(cfg.Tasks)),
 	}
-	tm.ctx, tm.cancelFun = context.WithTimeout(context.Background(), time.Duration(tm.cfg.Period)*time.Second)
+	tm.ctx, tm.cancelFun = context.WithTimeout(*ctx, time.Duration(tm.cfg.Period)*time.Second)
 	err := tm.init()
 	if err != nil {
 		return nil, err
 	}
+	logger.Wrapper.LogTrace("Task Manager created.")
 	return tm, nil
 }
 
@@ -34,7 +35,7 @@ func (tm *TasksManager) init() error {
 	for _, task := range tm.cfg.Tasks {
 		m, err := config.GetTaskMaterial(tm.cfg, task.ID)
 		if err != nil {
-			logger.LogError("Error: %s", err.Error())
+			logger.Wrapper.LogError("Error: %s", err.Error())
 		}
 
 		handler := CreateSingleTaskHandler(&tm.ctx, tm.cfg, m)
@@ -52,7 +53,7 @@ func (tm *TasksManager) Run() {
 			handler.Start()
 		}
 	}
-	if isAsync{
+	if isAsync {
 		// Block here
 		tm.WaitAllTasks()
 	}
@@ -68,32 +69,31 @@ func (tm *TasksManager) RunOne(taskID uint32) {
 func (tm *TasksManager) Stop() {
 	// Call cancel function to trigger context done.
 	tm.cancelFun()
+	logger.Wrapper.LogTrace("Task manager stopped")
 }
 
 func (tm *TasksManager) StopOne(taskID uint32) {
 	h := tm.handlers[taskID]
 	if h != nil {
-		logger.LogInfo("Stop task %d", taskID)
+		logger.Wrapper.LogInfo("Stop task %d", taskID)
 		h.Stop()
 	}
 }
 
 func (tm *TasksManager) WaitAllTasks() {
-	var allTaskDone bool
-	for allTaskDone {
+	var allTaskDone bool = false
+	for !allTaskDone {
 		// Assume all task are done.
-		allTaskDone =true
+		allTaskDone = true
 		for _, task := range tm.handlers {
 			state := task.GetState()
 			// Check for all command ready
-			if state != StateDoneSuccess || state != StateDoneFail {
+			if state != StateDoneSuccess && state != StateDoneFail {
 				allTaskDone = false
 				break
 			}
 		}
-		if allTaskDone {
-			break
-		}
-		time.Sleep(1000 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
+	logger.Wrapper.LogTrace("All task finished")
 }

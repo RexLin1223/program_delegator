@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"scp_delegator/config"
+	"scp_delegator/constant"
 	"scp_delegator/logger"
 	"strings"
 	"time"
@@ -31,6 +33,7 @@ const (
 type SingleTaskHandler struct {
 	config   *config.Config
 	material *config.TaskMaterial
+	logDir   string
 
 	inspector  *Inspector
 	ctx        context.Context
@@ -42,16 +45,19 @@ func CreateSingleTaskHandler(ctx *context.Context, cfg *config.Config, m *config
 	h := &SingleTaskHandler{
 		config:   cfg,
 		material: m,
+		state:    StateUninitialized,
 	}
 	h.ctx, h.cancelFunc = context.WithCancel(*ctx)
-	h.state = StateUninitialized
+	h.logDir = logger.GetOutputDir()
 
 	h.init()
+	logger.Wrapper.LogTrace("Task handler created")
 	return h
 }
 
-func (h *SingleTaskHandler) Start() {
-	h.run()
+func (h *SingleTaskHandler) Start() error {
+	logger.Wrapper.LogTrace("Task handler starting")
+	return h.run()
 }
 
 func (h *SingleTaskHandler) Stop() {
@@ -65,32 +71,39 @@ func (h *SingleTaskHandler) GetState() string {
 }
 
 func (h *SingleTaskHandler) init() {
-	h.inspector = CreateInspector(&h.ctx, &h.material.ConditionMaterial, h.execCommand)
+	if h.material.ConditionMaterial.Condition!=nil {
+		h.inspector = CreateInspector(&h.ctx, &h.material.ConditionMaterial, h.execCommand)
+	}
 	h.state = StateInitialized
 }
 
-func (h *SingleTaskHandler) run() {
+func (h *SingleTaskHandler) run() error {
 	if h.material.ConditionMaterial.Condition != nil {
+		logger.Wrapper.LogTrace("Task handler running with condition wait")
 		// Start inspector to monitoring
 		// Blocking here that wait for condition hit
 		h.state = StateMonitoring
 		err := h.inspector.Start()
 		if err != nil {
-			logger.LogInfo("Stop task %d because received error %s", h.material.TaskID, err.Error())
-			return
+			logger.Wrapper.LogInfo("Stop task %d because received error %s", h.material.TaskID, err.Error())
+			h.state = StateDoneFail
+			return err
 		}
+	} else {
+		// Run action immediately
+		h.execCommand()
 	}
-	// Run action
-	h.execCommand()
+	return nil
 }
 
 func (h *SingleTaskHandler) execCommand() {
-	// Set timeout for context
-	timeout := h.material.ActionMaterial.ActProperty.TimeoutS
-	if timeout == 0 {
-		timeout = DefaultValueTimeoutS
+	logger.Wrapper.LogTrace("Task handler execute command")
+	// Set timeoutS for context
+	timeoutS := h.material.ActionMaterial.ActProperty.TimeoutS
+	if timeoutS == 0 {
+		timeoutS = DefaultValueTimeoutS
 	}
-	h.ctx, h.cancelFunc = context.WithTimeout(h.ctx, time.Duration(timeout))
+	h.ctx, h.cancelFunc = context.WithTimeout(h.ctx, time.Second*time.Duration(timeoutS))
 	defer h.cancelFunc()
 
 	count := h.material.ActionMaterial.ActProperty.Repeat.Count
@@ -101,21 +114,21 @@ func (h *SingleTaskHandler) execCommand() {
 	h.state = StateExecuting
 	for {
 		if count == 0 {
-			logger.LogTrace("Task finished")
+			logger.Wrapper.LogTrace("Task finished")
 			break
 		}
 		err := h.execCommandOnce()
 		if err != nil {
-			logger.LogError("Error occurs when execute command, error %s", err.Error())
+			logger.Wrapper.LogError("Error occurs when execute command, error %s", err.Error())
 			break
 		}
 		count -= 1
 		time.Sleep(time.Duration(h.material.ActionMaterial.ActProperty.Repeat.IntervalS) * time.Second)
 	}
 
-	if count ==0 {
+	if count == 0 {
 		h.state = StateDoneSuccess
-	}else{
+	} else {
 		h.state = StateDoneFail
 	}
 }
@@ -132,10 +145,10 @@ func (h *SingleTaskHandler) execCommandOnce() error {
 			return errors.New(fmt.Sprintf("can't get pre-action property from template ID %d", act.Property))
 		}
 		// Get pre-action & action property
-		exeCommand(&h.ctx, act, actProperty)
+		exeCommand(&h.ctx, act)
 	}
 
-	exeCommand(&h.ctx, h.material.ActionMaterial.Action, h.material.ActionMaterial.ActProperty)
+	exeCommand(&h.ctx, h.material.ActionMaterial.Action)
 	if h.material.ActionMaterial.ActProperty.PeriodS != 0 {
 		time.Sleep(time.Second * time.Duration(h.material.ActionMaterial.ActProperty.PeriodS))
 	}
@@ -151,67 +164,76 @@ func (h *SingleTaskHandler) execCommandOnce() error {
 			return errors.New(fmt.Sprintf("can't get post-action property from template ID %d", act.Property))
 		}
 		// Get pre-action & action property
-		exeCommand(&h.ctx, act, actProperty)
+		exeCommand(&h.ctx, act)
 	}
 	return nil
 }
 
-func composeArgument(action *config.Action) string {
+func composeInnerArguments(action *config.Action) string{
 	var sb strings.Builder
-
-	// Stuff prefix options command of embed tool
-	sb.WriteString(EmbedBinaryOptions[action.Executable])
-
-	if len(action.Arguments) > 0 {
-		sb.WriteString(` --args `)
-		sb.WriteString(`"`) // Prefix sign and quote
+	if action.Arguments!=nil && len(action.Arguments) > 0 {
 		for _, arg := range action.Arguments {
-			sb.WriteString(arg.Command)
-			sb.WriteString(" ")
-			sb.WriteString(arg.Value)
-			sb.WriteString(" ")
+			if arg.Command != "" {
+				sb.WriteString(arg.Command)
+				sb.WriteString(" ")
+			}
+			if arg.Value != "" {
+				sb.WriteString(arg.Value)
+				sb.WriteString(" ")
+			}
 		}
-		sb.WriteString(`"`) // Post quote
 	}
 	return sb.String()
 }
 
-func composeBinaryPath() string {
-	path, err := os.Getwd()
-	if err != nil {
-		logger.LogError("Get error when query executable path, %s", err.Error())
-		return "rp_main.exe"
-	}
-	return path + "\\rp_main.exe"
+func composeArgument(action *config.Action) string {
+	return constant.EmbedBinaryOptions[action.Executable]
 }
 
-func exeCommand(parentCtx *context.Context, action *config.Action, actProperty *config.ActionProperty) {
+func composeBinaryPath() string {
+	// Get current path
+	path, err := filepath.Abs(constant.ExecutorName)
+	if err != nil {
+		logger.Wrapper.LogError("Get error when query executable path, %s", err.Error())
+		return constant.ExecutorName
+	}
+	return path
+}
+
+func exeCommand(ctx *context.Context, action *config.Action) {
 	bin := composeBinaryPath()
 	arg := composeArgument(action)
-	ctx, _ := context.WithTimeout(*parentCtx, time.Millisecond*time.Duration(actProperty.TimeoutS))
+	innerArg := composeInnerArguments(action)
 
-	cmd := exec.CommandContext(ctx, bin, arg)
-	// Blocking here util command finished or timeout triggered by context
-	err := cmd.Run()
-	if err != nil {
-		logger.LogError("Execute command error %s", err.Error())
-	}
-	// Execute finished
+	cmd := exec.CommandContext(*ctx, bin, arg, innerArg)
+
+	// Blocking here util process finished or timeout triggered by context
+	// If output path is not empty then output to specific path.
 	if action.Output != "" {
-		result, _ := cmd.Output()
+		result, err := cmd.CombinedOutput()
 		outputFile(action.Output, result)
+		if err != nil {
+			logger.Wrapper.LogError("Execute command error %s", err.Error())
+		}
+	} else {
+		err := cmd.Run()
+		if err != nil {
+			logger.Wrapper.LogError("Execute command error %s", err.Error())
+		}
 	}
 }
 
-func outputFile(fileName string, output []byte) {
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func outputFile(fileName string, data []byte) {
+	p := filepath.Join(config.GetOutputDir(), fileName)
+	f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		logger.LogError("Get error during opening file %s, error %s", fileName, err.Error())
+		logger.Wrapper.LogError("Get error during opening file %s, error %s", fileName, err.Error())
 		return
 	}
 	defer f.Close()
-	if _, err := f.Write(output); err != nil {
-		logger.LogError("Get error during writing output to file %s, error %s", fileName, err.Error())
-		return
+
+	_,err = f.Write(data)
+	if err!=nil {
+		logger.Wrapper.LogError("Get error during opening file %s, error %s", fileName, err.Error())
 	}
 }

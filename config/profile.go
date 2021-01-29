@@ -10,8 +10,7 @@ import (
 // Config is root structure of profile file
 type Config struct {
 	Version   string     `json:"scp_version"`
-	Period    uint32     `json:"execution_period"`
-	FreeSpace uint32     `json:"free_disk_space_GB"`
+	Period    uint32     `json:"Period"`
 	LogLevel  string     `json:"log_level"`
 	AsyncRun  bool       `json:"async_execute"`
 	Tasks     []Task     `json:"tasks"`
@@ -28,12 +27,12 @@ type Task struct {
 	ActionID    uint32 `json:"action"`
 }
 
-// Template includes action and condtion materials which used to compose the user defined task.
+// Template includes action and condition materials which used to compose the user defined task.
 type Template struct {
-	Actions            []Action            `json:"actions"`
-	ActionsProperties  []ActionProperty    `json:"action_properties"`
-	Conditions         []Condition         `json:"conditions"`
-	ConditionCriterias []ConditionCriteria `json:"condition_criterias"`
+	Actions           []Action            `json:"actions"`
+	ActionsProperties []ActionProperty    `json:"action_properties"`
+	Conditions        []Condition         `json:"conditions"`
+	ConditionCriteria []ConditionCriteria `json:"condition_criteria"`
 }
 
 // Action material is the operation adopt by user defined task.
@@ -70,26 +69,27 @@ type RepeatProperty struct {
 
 // Condition struct is condition template before perform actions.
 type Condition struct {
-	ID        uint32 `json:"id"`
-	Name      string `json:"name"`
-	Target    string `json:"monitor_process"`
-	Criterias Criterias `json:"criterias"`
+	ID            uint32   `json:"id"`
+	Name          string   `json:"name"`
+	TargetProcess string   `json:"monitor_process"`
+	TimeoutS      uint32   `json:"timeout_sec"`
+	Criteria      Criteria `json:"criteria"`
 }
 
-// Criterias is rule set of ConditionsCriterias which need fulfill all criteria.
-type Criterias struct {
+// Criteria is rule set of ConditionsCriteria which need fulfill mandatory criteria and least one of optional criteria.
+type Criteria struct {
 	Mandatory []uint32 `json:"mandatory"`
 	Optional  []uint32 `json:"optional"`
 }
 
-// ConditionCriteria is boundary of condition trigger ponint.
+// ConditionCriteria is boundary of condition trigger point.
 type ConditionCriteria struct {
 	ID         uint32 `json:"id"`
 	Type       string `json:"type"`
-	Interval   uint32 `json:"interval"`
+	Interval   uint32 `json:"interval_sec"`
 	Threshold  uint32 `json:"threshold"`
 	Operator   string `json:"operator"`
-	MaturityMS uint32 `json:"maturity"`
+	MaturityMS uint32 `json:"maturity_ms"`
 }
 
 // Variable composed by alias and value store in an element of map.
@@ -100,12 +100,23 @@ type Variable struct {
 
 // Upload structure stores upload setting
 type Upload struct {
-	AzureBlobHost    string         `json:"azure_blob_host"`
-	ProxySetting     Proxy          `json:"proxy"`
-	Authentication   Authentication `json:"authentication"`
-	MaxChunkSizeMB   uint32         `json:"max_chunk_size_MB"`
-	BandwidthLimitMB uint32         `json:"bandwidth_limit_MB"`
-	Grouping         []Group        `json:"grouping"`
+	AzBlob         AzBlob `json:"azure_blob"`
+	Proxy          Proxy  `json:"proxy"`
+	MaxBlockSizeMB uint32 `json:"max_block_size_MB"`
+	RateLimitMB    uint32 `json:"rate_limit_MB"`
+	TimeoutS       uint32 `json:"timeout_sec"`
+	MaxRetryCount  uint32 `json:"max_retry_count"`
+	SEGCaseID      string `json:"seg_case_id"`
+	CompanyID      string `json:"company_id"`
+	DeviceID       string `json:"device_id"`
+}
+
+// AzBlob struct stores upload properties of Azure Blob needed
+type AzBlob struct {
+	HostName      string `json:"host_name"`
+	AccountName   string `json:"account_name"`
+	ContainerName string `json:"container_name"`
+	SASToken      string `json:"sas_token"`
 }
 
 // Proxy struct composed by host and port.
@@ -114,28 +125,17 @@ type Proxy struct {
 	Port uint16 `json:"port"`
 }
 
-// Authentication struct composed by SAS token and access key.
-type Authentication struct {
-	SAS       string `json:"sas"`
-	AccessKey string `json:"access_key"`
-}
-
-// Group struct specific which task will be compressed together.
-type Group struct {
-	Tasks []uint32 `json:"tasks"`
-}
-
 func readProfile() ([]byte, error) {
 	f, err := os.Open("profile.json")
 	defer f.Close()
 	if err != nil {
-		logger.LogError("Can't open profile with error %s", err)
+		logger.Wrapper.LogError("Can't open profile with error %s", err)
 		return nil, err
 	}
 
 	s, err := ioutil.ReadAll(f)
 	if err != nil {
-		logger.LogError("Can't read profile with error %s", err)
+		logger.Wrapper.LogError("Can't read profile with error %s", err)
 		return nil, err
 	}
 	return s, nil
@@ -149,5 +149,8 @@ func ParseProfile() *Config {
 		return nil
 	}
 	json.Unmarshal(profile, cfg)
+
+	// Parse variable
+	cfg = traverseConfig(cfg)
 	return cfg
 }

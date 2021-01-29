@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"scp_delegator/config"
 	"scp_delegator/logger"
@@ -11,51 +12,44 @@ import (
 	"time"
 )
 
-const (
-	StateInspectorPending   = "Pending"
-	StateInspectorSatisfied = "Satisfied"
-	StateInspectorFinished  = "Finished"
-)
-
 // =================================================
 // Add method at below if add new condition checker
 // =================================================
-type ConditionChecker func(string, *config.ConditionCriteria) bool
+type ConditionChecker func(string, *config.ConditionCriteria) (bool, error)
 
 var ConditionCheckerMap = map[string]ConditionChecker{
-	"CPU":           ConditionCheckerCPU,
-	"Memory":        ConditionCheckerMemory,
-	"DiskFreeSpace": ConditionCheckerDiskFreeSpace,
+	"CPU":                ConditionCheckerCPU,
+	"Memory":             ConditionCheckerMemory,
+	"DiskAvailableUsage": ConditionCheckerDiskFreeSpace,
 }
 
-func ConditionCheckerCPU(processName string, c *config.ConditionCriteria) bool {
-	currentUsage := metric.GetProcessCpuUsage(processName)
-	if currentUsage == -1 {
-		return false
+func ConditionCheckerCPU(processName string, c *config.ConditionCriteria) (bool, error) {
+	currentUsage, err := metric.GetProcessCpuUsage(processName)
+	if err != nil {
+		return false, err
 	}
 
-	return compareWithOperator(uint64(math.Ceil(currentUsage)), uint64(c.Threshold), c.Operator)
+	return compareWithOperator(uint64(math.Ceil(currentUsage)), uint64(c.Threshold), c.Operator), nil
 }
 
-func ConditionCheckerMemory(processName string, c *config.ConditionCriteria) bool {
-	currentUsage := metric.GetProcessMemoryUsageMB(processName)
-	if currentUsage == -1 {
-		return false
+func ConditionCheckerMemory(processName string, c *config.ConditionCriteria) (bool, error) {
+	currentUsage, err := metric.GetProcessMemoryUsageMB(processName)
+	if err != nil {
+		return false, err
 	}
-	return compareWithOperator(uint64(currentUsage), uint64(c.Threshold), c.Operator)
+	return compareWithOperator(uint64(currentUsage), uint64(c.Threshold), c.Operator), nil
 }
 
-func ConditionCheckerDiskFreeSpace(processName string, c *config.ConditionCriteria) bool {
+func ConditionCheckerDiskFreeSpace(processName string, c *config.ConditionCriteria) (bool, error) {
 	path, err := syscall.Getwd()
 	if err != nil {
-		logger.LogError("Get current path error %s", err.Error())
-		return false
+		return false, err
 	}
-	currentUsage := metric.GetDiskFreeGB(path)
-	if currentUsage == -1 {
-		return false
+	currentUsage, err := metric.GetDiskFreeGB(path)
+	if err != nil {
+		return false, err
 	}
-	return compareWithOperator(uint64(currentUsage), uint64(c.Threshold), c.Operator)
+	return compareWithOperator(uint64(currentUsage), uint64(c.Threshold), c.Operator), nil
 }
 
 // =================================================
@@ -73,90 +67,129 @@ func compareWithOperator(value uint64, threshold uint64, operator string) bool {
 		return value != threshold
 	} else if operator == "==" || operator == "<>" {
 		return value == threshold
+	} else if operator == "" {
+		logger.Wrapper.LogInfo("No operator given, invalid comparison")
+		return false
 	} else {
-		logger.LogError("Unrecognized operator %s", operator)
+		logger.Wrapper.LogError("Unrecognized operator %s", operator)
 		return false
 	}
 }
 
-type ConditionSatisfiedFunc func()
-
+type OnRunAction func()
+type CriteriaID uint32
 type Inspector struct {
 	ctx           context.Context
 	cancelFunc    context.CancelFunc
 	material      *config.ConditionMaterial
-	satisfiedFunc ConditionSatisfiedFunc
+	runAction		OnRunAction
+
+	lastCheckTime map[CriteriaID]uint64
 }
 
-func CreateInspector(ctx *context.Context, m *config.ConditionMaterial, conditionHit ConditionSatisfiedFunc) *Inspector {
+func CreateInspector(ctx *context.Context, m *config.ConditionMaterial, runAction OnRunAction) *Inspector {
 	i := Inspector{
-		material: m,
-		satisfiedFunc: conditionHit,
+		material:      m,
+		runAction:  runAction,
 	}
-	i.ctx, i.cancelFunc = context.WithCancel(*ctx)
+	i.ctx, i.cancelFunc = context.WithTimeout(*ctx, time.Duration(m.Condition.TimeoutS) * time.Second )
 
 	i.init()
+	logger.Wrapper.LogTrace("Inspector created.")
 	return &i
 }
 
 func (i *Inspector) init() {
-
 }
 
 func (i *Inspector) Start() error {
-	logger.LogTrace("Inspector start begin")
+	logger.Wrapper.LogTrace("Inspector start begin")
+	defer i.cancelFunc()
+loop:
 	for {
 		select
 		{
 		case <-i.ctx.Done():
 			{
-				logger.LogInfo("Notified to close inspector")
+				logger.Wrapper.LogInfo("Notified to close inspector")
 				return errors.New("inspector cancelled by parent")
 			}
 		default:
 			{
-				if i.checkCriterias() {
+				conditionHit, err := i.validateWithCriteria()
+				if err != nil {
+					return err
+				} else if conditionHit == true {
 					// Notify task handler to perform action
-					i.satisfiedFunc()
-					break
+					logger.Wrapper.LogTrace("Condition are satisfied to set.")
+					i.runAction()
+					break loop
 				}
 				time.Sleep(time.Millisecond * 1000)
 			}
 		}
 	}
-	logger.LogTrace("Inspector start end")
+	logger.Wrapper.LogTrace("Inspector start end")
 	return nil
 }
 
 func (i *Inspector) Stop() {
-	logger.LogTrace("Inspector stop triggered")
+	logger.Wrapper.LogTrace("Inspector stopped by manual trigger")
 	i.cancelFunc()
 }
 
-func (i *Inspector) checkCriterias() bool {
+func (i *Inspector) validateWithCriteria() (bool, error) {
+	compareWithSingleCriterion := func(c *config.ConditionCriteria) (bool, error) {
+		checker := ConditionCheckerMap[c.Type]
+		if checker == nil {
+			return false, errors.New(fmt.Sprintf("invalid criteria, type=%s, ID=%d", c.Type, c.ID))
+		}
+
+		isSatisfied, err := checker(i.material.Condition.TargetProcess, c)
+		if err != nil {
+			return false, err
+		} else if !isSatisfied {
+			return false, nil
+		}
+
+		if c.MaturityMS > 0 {
+			// Wait for maturity
+			time.Sleep(time.Duration(c.MaturityMS) * time.Millisecond)
+			// Validate again
+			isSatisfied, err = checker(i.material.Condition.TargetProcess, c)
+			if err != nil {
+				return false, err
+			} else if !isSatisfied {
+				return false, nil
+			}
+		}
+		return true, nil
+	}
+
 	// Check for each mandatory criteria
 	for _, mc := range i.material.MandatoryCriteria {
-		checker := ConditionCheckerMap[mc.Type]
-		if checker == nil {
-			return false
+		result, err:=compareWithSingleCriterion(mc)
+		if err !=nil{
+			return false, err
 		}
-		if checker(i.material.Condition.Name, mc) == false {
-			// Lack of mandatory criteria, so that rerun earlier.
-			return false
+		if !result {
+			// Early return because one of mandatory not satisfied.
+			return false, nil
 		}
 	}
 
 	// Check whether hit any optional criteria
 	for _, oc := range i.material.OptionalCriteria {
-		checker := ConditionCheckerMap[oc.Type]
-		if checker == nil {
-			return false
+		result, err:=compareWithSingleCriterion(oc)
+		if err !=nil {
+			return false, err
 		}
-		if checker(i.material.Condition.Name, oc) == true {
-			// Hit the optional
-			return true
+		if result {
+			// Satisfied to all needed conditions
+			return true, nil
 		}
+
 	}
 
-	return false
+	return false, nil
 }

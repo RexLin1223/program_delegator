@@ -1,7 +1,0 @@
-2021/01/22 17:54:11 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
-2021/01/22 17:54:13 D:/Dev/repos/program_delegator/logger/logger.go:49: [Trace] Inspector start begin
-2021/01/22 18:01:48 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
-2021/01/22 18:02:03 D:/Dev/repos/program_delegator/logger/logger.go:49: [Trace] Inspector start begin
-2021/01/22 18:02:04 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main End
-2021/01/22 18:03:36 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main Start
-2021/01/22 18:03:41 D:/Dev/repos/program_delegator/logger/logger.go:41: [Info] Main End
