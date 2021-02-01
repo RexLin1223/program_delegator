@@ -56,7 +56,6 @@ func CreateSingleTaskHandler(ctx *context.Context, cfg *config.Config, m *config
 }
 
 func (h *SingleTaskHandler) Start() error {
-	logger.Wrapper.LogTrace("Task handler starting")
 	return h.run()
 }
 
@@ -79,7 +78,7 @@ func (h *SingleTaskHandler) init() {
 
 func (h *SingleTaskHandler) run() error {
 	if h.material.ConditionMaterial.Condition != nil {
-		logger.Wrapper.LogTrace("Task handler running with condition wait")
+		logger.Wrapper.LogTrace("Task %d running with condition wait", h.material.TaskID)
 		// Start inspector to monitoring
 		// Blocking here that wait for condition hit
 		h.state = StateMonitoring
@@ -93,11 +92,12 @@ func (h *SingleTaskHandler) run() error {
 		// Run action immediately
 		h.execCommand()
 	}
+	logger.Wrapper.LogTrace("Task handler %d finished", h.material.TaskID)
 	return nil
 }
 
 func (h *SingleTaskHandler) execCommand() {
-	logger.Wrapper.LogTrace("Task handler execute command")
+	logger.Wrapper.LogTrace("Task handler %d start to execute command", h.material.TaskID)
 	// Set timeoutS for context
 	timeoutS := h.material.ActionMaterial.ActProperty.TimeoutS
 	if timeoutS == 0 {
@@ -114,7 +114,6 @@ func (h *SingleTaskHandler) execCommand() {
 	h.state = StateExecuting
 	for {
 		if count == 0 {
-			logger.Wrapper.LogTrace("Task finished")
 			break
 		}
 		err := h.execCommandOnce()
@@ -131,6 +130,7 @@ func (h *SingleTaskHandler) execCommand() {
 	} else {
 		h.state = StateDoneFail
 	}
+	logger.Wrapper.LogTrace("Task handler %d end to execute command", h.material.TaskID)
 }
 
 func (h *SingleTaskHandler) execCommandOnce() error {
@@ -183,11 +183,12 @@ func composeInnerArguments(action *config.Action) string{
 			}
 		}
 	}
-	return sb.String()
+
+	return strings.Trim(sb.String(), " ")
 }
 
 func composeArgument(action *config.Action) string {
-	return constant.EmbedBinaryOptions[action.Executable]
+	return strings.Trim(constant.EmbedBinaryOptions[action.Executable], " ")
 }
 
 func composeBinaryPath() string {
@@ -197,7 +198,7 @@ func composeBinaryPath() string {
 		logger.Wrapper.LogError("Get error when query executable path, %s", err.Error())
 		return constant.ExecutorName
 	}
-	return path
+	return strings.Trim(path, " ")
 }
 
 func exeCommand(ctx *context.Context, action *config.Action) {
@@ -206,6 +207,7 @@ func exeCommand(ctx *context.Context, action *config.Action) {
 	innerArg := composeInnerArguments(action)
 
 	cmd := exec.CommandContext(*ctx, bin, arg, innerArg)
+	logger.Wrapper.LogTrace("Execute command %s\n", cmd.String())
 
 	// Blocking here util process finished or timeout triggered by context
 	// If output path is not empty then output to specific path.

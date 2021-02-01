@@ -6,8 +6,8 @@
   "tasks": [
     {
       "id": 1,
-      "name": "monitor_taskmgr",
-      "condition": 3,
+      "name": "wpr_record",
+      "condition": 1,
       "action": 1
     },
     {
@@ -17,12 +17,12 @@
     },
     {
       "id": 3,
-      "name": "collect_diag_pkg",
+      "name": "collect_DSA_metrics",
       "action": 3
     },
     {
-      "id": 2,
-      "name": "collect_DSA_metrics",
+      "id": 4,
+      "name": "collect_diag_pkg",
       "action": 4
     }
   ],
@@ -82,25 +82,23 @@
       {
         "id": 3,
         "name": "dsa_get_metrics",
-        "executable": "{dsa_bin_dir}\\sendCommand.cmd",
+        "executable": "sendCommand.cmd",
         "arguments": [
           {
             "command": "--get",
             "value": "Metrics"
           }
-        ],
-        "output": "get_metrics.log"
+        ]
       },
       {
         "id": 4,
         "name": "dsa_diagnostic_package",
-        "executable": "{dsa_bin_dir}\\dsa_control.cmd",
+        "executable": "",
         "arguments": [
           {
-            "command": "-d"
+            "command": "-g"
           }
-        ],
-        "output": "diagnostic_package.log"
+        ]
       },
       {
         "id": 5,
@@ -121,7 +119,7 @@
       {
         "id": 6,
         "name": "enable_trace_log",
-        "executable": "{dsa_bin_dir}\\dsa_control.cmd",
+        "executable": "dsa_control.cmd",
         "arguments": [
           {
             "command": "--trace",
@@ -139,7 +137,7 @@
       {
         "id": 1,
         "timeout_sec": 600,
-        "period_sec": 10,
+        "period_sec": 60,
         "repeat": {
           "count": 1,
           "interval_sec": 10
@@ -153,6 +151,12 @@
           "count": 100,
           "interval_sec": 10
         }
+      },
+      {
+        "id": 2,
+        "name": "Wait for diagnostic package",
+        "timeout_sec": 1800,
+        "period_sec": 180
       }
     ],
     "conditions": [
@@ -167,7 +171,8 @@
           ],
           "optional": [
             1,
-            2
+            2,
+            4
           ]
         }
       },
